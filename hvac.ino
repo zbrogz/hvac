@@ -6,7 +6,7 @@
 const char* ssid = "kelflanagan";
 const char* password = "Network4things";
 
-const char* host = "qrdr3yk7s4.execute-api.us-west-2.amazonaws.com";
+const char* host = "ADD URL HERE";
 const int httpsPort = 443;
 
 // Use web browser to view and copy
