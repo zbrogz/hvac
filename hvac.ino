@@ -3,8 +3,8 @@
 #include <ArduinoJson.h>
 
 
-const char* ssid = "kelflanagan";
-const char* password = "Network4things";
+const char* ssid = "ADD SSID HERE";
+const char* password = "ADD PSWD HERE";
 
 const char* host = "ADD URL HERE";
 const int httpsPort = 443;
