@@ -22,6 +22,7 @@ void setup() {
 
 void loop() {
   WiFiClientSecure client;
+  connectToAPI(&client);
   sendRequestToAPI(&client);
   getResponseFromAPI(&client);
 }
