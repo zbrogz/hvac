@@ -7,15 +7,12 @@
 #define MIN_OFF_TIME_S 300 // AC must be off 300 seconds before turning back on
 #define PERIOD_S 10 // How frequently the state is retrieved
 
-const char* ssid = "ADD SSID HERE";
-const char* password = "ADD PSWD HERE";
 #define MIN_OFF_TIME (MIN_OFF_TIME_S / PERIOD_S)
 #define PERIOD_MS (PERIOD_S * 1000)
 #define HEATER_PIN D6
 #define FAN_PIN D7
 #define AC_PIN D8
 
-const char* host = "ADD URL HERE";
 struct HVACState {
   bool heater;
   bool ac;
@@ -23,7 +20,9 @@ struct HVACState {
   uint32_t off_time;
 };
 
-
+const char* ssid = "kelflanagan";
+const char* password = "Network4things";
+const char* host = "qrdr3yk7s4.execute-api.us-west-2.amazonaws.com";
 const int httpsPort = 443;
 
 // Use web browser to view and copy
@@ -54,9 +53,6 @@ void loop() {
     //else offline = true;
   }
   delay(PERIOD_MS);
-}
-
-void runNormalMode() {
 }
 
 bool verifyState() {
