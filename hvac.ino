@@ -1,31 +1,103 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <ArduinoJson.h>
 
+#define MIN_OFF_TIME_S 300 // AC must be off 300 seconds before turning back on
+#define PERIOD_S 10 // How frequently the state is retrieved
 
 const char* ssid = "ADD SSID HERE";
 const char* password = "ADD PSWD HERE";
+#define MIN_OFF_TIME (MIN_OFF_TIME_S / PERIOD_S)
+#define PERIOD_MS (PERIOD_S * 1000)
+#define HEATER_PIN D6
+#define FAN_PIN D7
+#define AC_PIN D8
 
 const char* host = "ADD URL HERE";
+struct HVACState {
+  bool heater;
+  bool ac;
+  bool fan;
+  uint32_t off_time;
+};
+
+
 const int httpsPort = 443;
 
 // Use web browser to view and copy
 // SHA1 fingerprint of the certificate
 const char* fingerprint = "CF 05 98 89 CA FF 8E D8 5E 5C E0 C2 E4 F7 E6 C3 C7 50 DD 5C";
+bool offline = false;
+HVACState state = {false, false, false, 0};
+HVACState nextState = {false, false, false, 0};
 
 void setup() {
-  pinMode(D8, OUTPUT);
-  Serial.begin(115200);
+  pinMode(HEATER_PIN, OUTPUT);
+  pinMode(AC_PIN, OUTPUT);
+  pinMode(FAN_PIN, OUTPUT);
+  Serial.begin(9600);
   Serial.println();
   connectToWifiAP();
 }
 
 void loop() {
-  WiFiClientSecure client;
+  if(offline) {
+    //runOfflineMode();
+  }
+  else {
+    getState();
+    if(verifyState()) {
+      runState();  
+    }
+    //else offline = true;
+  }
+  delay(PERIOD_MS);
+}
+
+void runNormalMode() {
+}
+
+bool verifyState() {
+  // 4 Valid States
+  // HEATING (heater and fan on)
+  if(nextState.heater && !nextState.ac && nextState.fan) {
+    return true;
+  }
+  // COOLING (ac and fan on)
+  else if(!nextState.heater && nextState.ac && nextState.fan) {
+    if(!state.ac && nextState.off_time >= MIN_OFF_TIME) {
+      return true;
+    }
+    else return false;
+  }
+  // VENTILATING (just fan on)
+  else if(!nextState.heater && !nextState.ac && nextState.fan) {
+    return true;
+  }
+  // IDLE
+  else if(!nextState.heater && !nextState.ac && !nextState.fan) {
+    return true;
+  }
+  // ERROR (invalid state)
+  else return false;
+}
+
+void runState() {
+  state = nextState;
+  digitalWrite(HEATER_PIN, state.heater);
+  digitalWrite(AC_PIN, state.ac);
+  digitalWrite(FAN_PIN, state.fan);
+}
+
+void getState() {
+  static WiFiClientSecure client; //make static?
   connectToAPI(&client);
   sendRequestToAPI(&client);
   getResponseFromAPI(&client);
 }
+
 
 void connectToWifiAP() {
   Serial.print("connecting to ");
@@ -87,15 +159,10 @@ void getResponseFromAPI(WiFiClientSecure* client) {
     return;
   }
   Serial.println("JSON PARSED");
-  const char* heater = root["heater"];
-  
-  if(!strcmp("on", heater)) {
-    Serial.println("Heater is on");
-    digitalWrite(D8, HIGH); // LED ON
-  }
-  else {
-    Serial.println("Heater is off");
-    digitalWrite(D8, LOW); // LED OFF
-  }
+  //Add better checks here
+  nextState.heater = root["heater"];
+  nextState.ac = root["ac"];
+  nextState.fan = root["fan"];
+  nextState.off_time = root["off_time"];
 }
 
