@@ -20,9 +20,9 @@ struct HVACState {
   uint32_t off_time;
 };
 
-const char* ssid = "kelflanagan";
-const char* password = "Network4things";
-const char* host = "qrdr3yk7s4.execute-api.us-west-2.amazonaws.com";
+const char* ssid = "INSERT SSID";
+const char* password = "INSERT PASSWORD";
+const char* host = "INSERT URL";
 const int httpsPort = 443;
 
 // Use web browser to view and copy
