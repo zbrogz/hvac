@@ -9,12 +9,12 @@
 
 #define MIN_OFF_TIME (MIN_OFF_TIME_S / PERIOD_S)
 #define PERIOD_MS (PERIOD_S * 1000)
-#define HEATER_PIN D6
+#define HEAT_PIN D6
 #define FAN_PIN D7
 #define AC_PIN D8
 
 struct HVACState {
-  bool heater;
+  bool heat;
   bool ac;
   bool fan;
   uint32_t off_time;
@@ -33,7 +33,7 @@ HVACState state = {false, false, false, 0};
 HVACState nextState = {false, false, false, 0};
 
 void setup() {
-  pinMode(HEATER_PIN, OUTPUT);
+  pinMode(HEAT_PIN, OUTPUT);
   pinMode(AC_PIN, OUTPUT);
   pinMode(FAN_PIN, OUTPUT);
   Serial.begin(9600);
@@ -57,23 +57,23 @@ void loop() {
 
 bool verifyState() {
   // 4 Valid States
-  // HEATING (heater and fan on)
-  if(nextState.heater && !nextState.ac && nextState.fan) {
+  // HEATING (heat and fan on)
+  if(nextState.heat && !nextState.ac && nextState.fan) {
     return true;
   }
   // COOLING (ac and fan on)
-  else if(!nextState.heater && nextState.ac && nextState.fan) {
+  else if(!nextState.heat && nextState.ac && nextState.fan) {
     if(!state.ac && nextState.off_time >= MIN_OFF_TIME) {
       return true;
     }
     else return false;
   }
   // VENTILATING (just fan on)
-  else if(!nextState.heater && !nextState.ac && nextState.fan) {
+  else if(!nextState.heat && !nextState.ac && nextState.fan) {
     return true;
   }
   // IDLE
-  else if(!nextState.heater && !nextState.ac && !nextState.fan) {
+  else if(!nextState.heat && !nextState.ac && !nextState.fan) {
     return true;
   }
   // ERROR (invalid state)
@@ -82,7 +82,7 @@ bool verifyState() {
 
 void runState() {
   state = nextState;
-  digitalWrite(HEATER_PIN, state.heater);
+  digitalWrite(HEAT_PIN, state.heat);
   digitalWrite(AC_PIN, state.ac);
   digitalWrite(FAN_PIN, state.fan);
 }
@@ -156,7 +156,7 @@ void getResponseFromAPI(WiFiClientSecure* client) {
   }
   Serial.println("JSON PARSED");
   //Add better checks here
-  nextState.heater = root["heater"];
+  nextState.heat = root["heat"];
   nextState.ac = root["ac"];
   nextState.fan = root["fan"];
   nextState.off_time = root["off_time"];
