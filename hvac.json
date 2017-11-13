@@ -1,0 +1,110 @@
+{
+	"devices": [
+		{
+			"uuid": "hvac",
+			"room_id": "",
+			"deviceName": "HVAC Controller",
+			"deviceType": "HVAC Controller",
+			"devicePath": "",
+			"parameters": [
+				{"uuid": "hvac.heat", "paramName": "heat", "paramType": "bool", "paramActions": "both", "paramValue": "false"},
+				{"uuid": "hvac.ac","paramName": "ac",	"paramType": "bool","paramActions": "both","paramValue": "false"},
+				{"uuid": "hvac.fan","paramName": "fan", "paramType": "bool", "paramActions": "both", "paramValue": "false"},
+				{"uuid": "hvac.off_time","paramName": "off_time", "paramType": "number", "paramActions": "both", "paramValue": "0"},
+				{"uuid": "hvac.update_period","paramName": "update_period", "paramType": "number", "paramActions": "both", "paramValue": "10"}
+			]	
+		},
+		{
+			"uuid": "tempSensor",
+			"room_id": "",
+			"deviceName": "Temperature Sensor",
+			"deviceType": "Temperature Sensor",
+			"devicePath": "",
+			"parameters": [
+				{"uuid": "tempSensor.temperature", "paramName": "temperature", "paramType": "number", "paramActions": "both", "paramValue": "71"}
+			]
+		},
+		{
+			"uuid": "setPt",
+			"room_id": "",
+			"deviceName": "Temperature Set Point",
+			"deviceType": "Temperature Set Point",
+			"devicePath": "",
+			"parameters": [
+				{"uuid": "setPt.set_temperature", "paramName": "set_temperature", "paramType": "number", "paramActions": "both", "paramValue": "71"}
+			]
+		}
+	],
+
+	"actions": [
+		{
+			"uuid":"hvac_idle",
+			"actionName": "HVAC Idle",
+			"actionCommands": [
+				{"paramID": "hvac.heat", "paramValue": "false"},
+				{"paramID": "hvac.ac", "paramValue": "false"},
+				{"paramID": "hvac.fan", "paramValue": "false"}
+			]
+		},
+		{
+			"uuid":"hvac_heat",
+			"actionName": "HVAC Heat",
+			"actionCommands": [
+				{"paramID": "hvac.heat", "paramValue": "true"},
+				{"paramID": "hvac.ac", "paramValue": "false"},
+				{"paramID": "hvac.fan", "paramValue": "true"}
+			]
+		},
+		{
+			"uuid":"hvac_cool",
+			"actionName": "HVAC Cool",
+			"actionCommands": [
+				{"paramID": "hvac.heat", "paramValue": "false"},
+				{"paramID": "hvac.ac", "paramValue": "true"},
+				{"paramID": "hvac.fan", "paramValue": "true"}
+			]
+		},
+		{
+			"uuid":"hvac_vent",
+			"actionName": "HVAC Vent",
+			"actionCommands": [
+				{"paramID": "hvac.heat", "paramValue": "false"},
+				{"paramID": "hvac.ac", "paramValue": "false"},
+				{"paramID": "hvac.fan", "paramValue": "true"}
+			]
+		}
+	],
+
+	"conditions": [
+		{
+			"uuid": "temp_gt",
+			"conditionName": "Temperature Greater Than Set Temperature",
+			"paramID": "tempSensor.temperature",
+			"conditionType": "dynamic",
+			"comparison": ">",
+			"comparisonParameter": "setPt.set_temperature",
+			"tolerance": "2",
+			"actionID": "hvac_cool"
+		},
+		{
+			"uuid": "temp_lt",
+			"conditionName": "Temperature Less Than Set Temperature",
+			"paramID": "tempSensor.temperature",
+			"conditionType": "dynamic",
+			"comparison": "<",
+			"comparisonParameter": "setPt.set_temperature",
+			"tolerance": "2",
+			"actionID": "hvac_heat"
+		},
+		{
+			"uuid": "temp_eq",
+			"conditionName": "Temperature Equal to Set Temperature",
+			"paramID": "tempSensor.temperature",
+			"conditionType": "dynamic",
+			"comparison": "=",
+			"comparisonParameter": "setPt.set_temperature",
+			"tolerance": "2",
+			"actionID": "hvac_idle"
+		}
+	]
+}
