@@ -1,102 +1,68 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
-#include <stdint.h>
-#include <stdlib.h>
 #include <ArduinoJson.h>
 
-#define MIN_OFF_TIME_S 300 // AC must be off 300 seconds before turning back on
-#define PERIOD_S 10 // How frequently the state is retrieved
-
-#define MIN_OFF_TIME (MIN_OFF_TIME_S / PERIOD_S)
-#define PERIOD_MS (PERIOD_S * 1000)
-#define HEAT_PIN D6
+#define HEATER_PIN D6
 #define FAN_PIN D7
 #define AC_PIN D8
+#define MAX_ERROR_COUNT 1
 
 struct HVACState {
-  bool heat;
+  bool heater;
   bool ac;
   bool fan;
-  uint32_t off_time;
+  unsigned int off_time;
+  unsigned int min_off_time;
+  unsigned int update_period;
 };
 
-const char* ssid = "INSERT SSID";
-const char* password = "INSERT PASSWORD";
-const char* host = "INSERT URL";
-const int httpsPort = 443;
+WiFiClientSecure client;
+HVACState state = {false, false, false, 0, 0, 10};
+HVACState next_state = {false, false, false, 0, 0, 10};
+unsigned long error_count = 0;
 
-// Use web browser to view and copy
-// SHA1 fingerprint of the certificate
-const char* fingerprint = "CF 05 98 89 CA FF 8E D8 5E 5C E0 C2 E4 F7 E6 C3 C7 50 DD 5C";
-bool offline = false;
-HVACState state = {false, false, false, 0};
-HVACState nextState = {false, false, false, 0};
+/*************** MODIFY THESE LINES ***************/
+
+const char* ssid = "WIFI SSID";
+const char* password = "WIFI PASSWORD";
+const char* host = "API HOST"; // ex) "api.api.com"
+const char* url = "DEVICE URL" // ex) "/dev/hvac/"
+
+/*************** Setup & Loop ***************/
 
 void setup() {
-  pinMode(HEAT_PIN, OUTPUT);
+  pinMode(HEATER_PIN, OUTPUT);
   pinMode(AC_PIN, OUTPUT);
   pinMode(FAN_PIN, OUTPUT);
+  digitalWrite(HEATER_PIN, false);
+  digitalWrite(AC_PIN, false);
+  digitalWrite(FAN_PIN, false);
   Serial.begin(9600);
-  Serial.println();
-  connectToWifiAP();
+  connectToWifi();
 }
 
 void loop() {
-  if(offline) {
-    //runOfflineMode();
-  }
-  else {
-    getState();
-    if(verifyState()) {
+  if(error_count < MAX_ERROR_COUNT) {
+    if(getState() && verifyState()) {
       runState();  
     }
-    //else offline = true;
+    //else error_count++;
   }
-  delay(PERIOD_MS);
+  else {
+    //runOffline();
+    //error_count = 0;
+  }
+  delay_seconds(state.update_period);
 }
 
-bool verifyState() {
-  // 4 Valid States
-  // HEATING (heat and fan on)
-  if(nextState.heat && !nextState.ac && nextState.fan) {
-    return true;
-  }
-  // COOLING (ac and fan on)
-  else if(!nextState.heat && nextState.ac && nextState.fan) {
-    if(!state.ac && nextState.off_time >= MIN_OFF_TIME) {
-      return true;
-    }
-    else return false;
-  }
-  // VENTILATING (just fan on)
-  else if(!nextState.heat && !nextState.ac && nextState.fan) {
-    return true;
-  }
-  // IDLE
-  else if(!nextState.heat && !nextState.ac && !nextState.fan) {
-    return true;
-  }
-  // ERROR (invalid state)
-  else return false;
+/*************** Helper Functions ***************/
+void delay_seconds(unsigned int seconds) {
+  unsigned long ms = 1000L * seconds;
+  delay(ms);
 }
 
-void runState() {
-  state = nextState;
-  digitalWrite(HEAT_PIN, state.heat);
-  digitalWrite(AC_PIN, state.ac);
-  digitalWrite(FAN_PIN, state.fan);
-}
-
-void getState() {
-  static WiFiClientSecure client; //make static?
-  connectToAPI(&client);
-  sendRequestToAPI(&client);
-  getResponseFromAPI(&client);
-}
-
-
-void connectToWifiAP() {
-  Serial.print("connecting to ");
+void connectToWifi() {
+  Serial.print("Connecting to: ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -109,56 +75,97 @@ void connectToWifiAP() {
   Serial.println(WiFi.localIP());
 }
 
-void connectToAPI(WiFiClientSecure* client) {
-  // Use WiFiClientSecure class to create TLS connection
+bool getState() {
+  // Connect with TLS
   Serial.print("connecting to ");
   Serial.println(host);
-  if (!client->connect(host, httpsPort)) {
+  if (!client.connect(host, 443)) {
     Serial.println("connection failed");
-    return;
+    return false;
   }
 
-  /*if (client.verify(fingerprint, host)) {
-    Serial.println("certificate matches");
-  } else {
-    Serial.println("certificate doesn't match");
-  }*/
-  
-}
-
-void sendRequestToAPI(WiFiClientSecure* client) {
-  String url = "/testStage/hvac/testHvacID";
+  // Send Request
   Serial.print("requesting URL: ");
   Serial.println(url);
-
-  client->print(String("GET ") + url + " HTTP/1.1\r\n" +
+  client.print(String("GET ") + String(url) + " HTTP/1.1\r\n" +
                "Host: " + host + "\r\n" +
                "User-Agent: BuildFailureDetectorESP8266\r\n" +
                "Connection: close\r\n\r\n");
-  
   Serial.println("request sent");
-  delay(500);
-}
 
-void getResponseFromAPI(WiFiClientSecure* client) {
+  // Get Response
   String json = "";
-  // Read https response until json data
-  while (client->available()) {
-    json = client->readStringUntil('\r');
-  }
   StaticJsonBuffer<400> jsonBuffer;
+  // Read https response until json data
+  while (client.connected()) {
+    json = client.readStringUntil('\r');
+    Serial.println("Json: " + json);
+  }
   Serial.println("Got data:");
   Serial.println(json);
   JsonObject& root = jsonBuffer.parseObject(json);
   if(!root.success()) {
     Serial.println("JSON PARSING FAILED");
-    return;
+    return false;
   }
   Serial.println("JSON PARSED");
-  //Add better checks here
-  nextState.heat = root["heat"];
-  nextState.ac = root["ac"];
-  nextState.fan = root["fan"];
-  nextState.off_time = root["off_time"];
+
+  // Verify Json
+  JsonVariant heater = root["heater"];
+  if(!heater.success() || !heater.is<bool>()) return false;
+  next_state.heater = heater.as<bool>();
+  
+  JsonVariant ac = root["ac"];
+  if(!ac.success() || !ac.is<bool>()) return false;
+  next_state.ac = ac.as<bool>();
+  
+  JsonVariant fan = root["fan"];
+  if(!fan.success() || !fan.is<bool>()) return false;
+  next_state.fan = fan.as<bool>();
+  
+  JsonVariant off_time = root["off_time"];
+  if(!off_time.success() || !off_time.is<unsigned int>()) return false;
+  next_state.off_time = off_time.as<unsigned int>();
+  
+  JsonVariant min_off_time = root["min_off_time"];
+  if(!min_off_time.success() || !min_off_time.is<unsigned int>()) return false;
+  next_state.min_off_time = min_off_time.as<unsigned int>();
+
+  JsonVariant update_period = root["update_period"];
+  if(!update_period.success() || !update_period.is<unsigned int>()) return false;
+  next_state.update_period = update_period.as<unsigned int>();
+
+  return true;
 }
 
+bool verifyState() {
+  // 4 Valid States
+  // HEATING (heaterand fan on)
+  if(next_state.heater && !next_state.ac && next_state.fan) {
+    return true;
+  }
+  // COOLING (ac and fan on)
+  else if(!next_state.heater && next_state.ac && next_state.fan) {
+    if(!state.ac && (next_state.off_time >= next_state.min_off_time)) {
+      return true;
+    }
+    else return false;
+  }
+  // VENTILATING (just fan on)
+  else if(!next_state.heater && !next_state.ac && next_state.fan) {
+    return true;
+  }
+  // IDLE
+  else if(!next_state.heater && !next_state.ac && !next_state.fan) {
+    return true;
+  }
+  // ERROR (invalid state)
+  else return false;
+}
+
+void runState() {
+  state = next_state;
+  digitalWrite(HEATER_PIN, state.heater);
+  digitalWrite(AC_PIN, state.ac);
+  digitalWrite(FAN_PIN, state.fan);
+}
