@@ -23,10 +23,10 @@ unsigned long error_count = 0;
 
 /*************** MODIFY THESE LINES ***************/
 
-const char* ssid = "WIFI SSID";
-const char* password = "WIFI PASSWORD";
-const char* host = "API HOST"; // ex) "api.api.com"
-const char* url = "DEVICE URL" // ex) "/dev/hvac/"
+const char* ssid = "BYU-WiFi";//"zbrogz";
+const char* password = "";//"7149925462";
+const char* host = "g7p8av49l3.execute-api.us-west-2.amazonaws.com"; // ex) "api.api.com"
+const char* path = "/dev/hvac/2f3f04053b824a5491b4aa09975277f9"; // ex) "/dev/hvac/"
 
 /*************** Setup & Loop ***************/
 
@@ -86,23 +86,32 @@ bool getState() {
 
   // Send Request
   Serial.print("requesting URL: ");
-  Serial.println(url);
-  client.print(String("GET ") + String(url) + " HTTP/1.1\r\n" +
+  Serial.println(path);
+  client.print(String("GET ") + String(path) + " HTTP/1.1\r\n" +
                "Host: " + host + "\r\n" +
                "User-Agent: BuildFailureDetectorESP8266\r\n" +
                "Connection: close\r\n\r\n");
   Serial.println("request sent");
 
   // Get Response
-  String json = "";
-  StaticJsonBuffer<400> jsonBuffer;
-  // Read https response until json data
+  // Skip Headers
   while (client.connected()) {
-    json = client.readStringUntil('\r');
-    Serial.println("Json: " + json);
+    String line = client.readStringUntil('\n');
+    Serial.println(line);
+    if (line == "\r") {
+      Serial.println("headers received");
+      break;
+    }
+  }
+  // Read body
+  String json = "";
+  while (client.available()) {
+    json += client.readStringUntil('\r');
   }
   Serial.println("Got data:");
   Serial.println(json);
+
+  StaticJsonBuffer<400> jsonBuffer;
   JsonObject& root = jsonBuffer.parseObject(json);
   if(!root.success()) {
     Serial.println("JSON PARSING FAILED");
