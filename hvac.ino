@@ -25,8 +25,8 @@ unsigned long error_count = 0;
 
 const char* ssid = "BYU-WiFi";//"zbrogz";
 const char* password = "";//"7149925462";
-const char* host = "g7p8av49l3.execute-api.us-west-2.amazonaws.com"; // ex) "api.api.com"
-const char* path = "/dev/hvac/2f3f04053b824a5491b4aa09975277f9"; // ex) "/dev/hvac/"
+const char* host = "api.zachbrogan.com"; // ex) "api.api.com"
+const char* path = "/hvac/2f3f04053b824a5491b4aa09975277f9"; // ex) "/dev/hvac/"
 
 /*************** Setup & Loop ***************/
 
